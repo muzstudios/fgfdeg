@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEVZU - Haber Ajansı</title>
+    <style>
+        :root {
+            --bg-dark: #080d16;
+            --bg-light: #1c2b4b;
+            --card-bg: rgba(28, 43, 75, 0.6);
+            --primary-red: #e63946;
+            --text-light: #ffffff;
+            --text-muted: #a0aec0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { 
+            background: radial-gradient(circle at top, var(--bg-light) 0%, var(--bg-dark) 100%);
+            background-attachment: fixed;
+            color: var(--text-light); 
+            line-height: 1.6; 
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- TOAST MESAJ SİSTEMİ --- */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; }
+        .toast { background: var(--card-bg); border-left: 4px solid var(--primary-red); color: white; padding: 15px 25px; margin-bottom: 10px; border-radius: 5px; backdrop-filter: blur(10px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); animation: slideIn 0.5s ease forwards; min-width: 250px; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* --- NAVBAR --- */
+        .navbar { background-color: rgba(8, 13, 22, 0.85); padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary-red); position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+        .logo-container img { height: 60px; }
+        .secret-login input { background: rgba(0,0,0,0.3); border: 1px solid var(--text-muted); color: white; padding: 8px 15px; border-radius: 20px; outline: none; transition: 0.3s; width: 150px; }
+        .secret-login input:focus { width: 200px; border-color: var(--primary-red); }
+
+        /* --- YÖNETİM PANELİ --- */
+        #adminPanel { display: none; background: var(--card-bg); margin: 30px auto; max-width: 800px; padding: 25px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(8px); }
+        .form-group { margin-bottom: 15px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px; background: rgba(8, 13, 22, 0.9); border: 1px solid #2d3748; color: white; border-radius: 5px; outline: none; }
+        .form-group button { background: var(--primary-red); color: white; border: none; padding: 12px 25px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s; width: 100%; }
+        .form-group button:hover { background: #b32a35; }
+
+        /* --- HABERLER --- */
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        .section-title { font-size: 24px; margin-bottom: 25px; border-bottom: 2px solid var(--primary-red); padding-bottom: 5px; display: inline-block; }
+        #newsFeed { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
+        .news-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; position: relative; transition: 0.3s; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; }
+        .news-card:hover { transform: translateY(-8px); border-color: var(--primary-red); box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
+        .news-image-container { width: 100%; height: 210px; background: #0b1320; }
+        .news-image { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+        .news-content { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        .news-title { font-size: 19px; font-weight: bold; margin-bottom: 12px; color: #fff; line-height: 1.3; }
+        .news-desc { font-size: 14px; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 15px; }
+        .news-date { font-size: 11px; color: #5a6a82; margin-top: auto; font-style: italic; }
+
+        /* --- AI ROZETİ --- */
+        .ai-badge { position: absolute; top: 12px; right: 12px; display: flex; align-items: center; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--primary-red); z-index: 5; }
+        .ai-badge img { width: 18px; height: 18px; border-radius: 50%; margin-right: 7px; }
+        .ai-badge span { color: white; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; }
+
+        footer { text-align: center; padding: 40px; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 60px; color: var(--text-muted); font-size: 14px; }
+        footer a { color: var(--primary-red); text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <nav class="navbar">
+        <div class="logo-container"><img src="logo.jpg" alt="Mevzu"></div>
+        <div class="secret-login">
+            <input type="password" id="passInput" placeholder="Mevzu..." oninput="checkPass()">
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="adminPanel">
+            <h2 style="color:var(--primary-red); margin-bottom:15px;">Kurucu Paneli</h2>
+            <div class="form-group"><input type="text" id="newsTitle" placeholder="Haber Başlığı"></div>
+            <div class="form-group"><input type="text" id="newsImgUrl" placeholder="Görsel URL"></div>
+            <div class="form-group"><textarea id="newsContent" rows="4" placeholder="Haber İçeriği..."></textarea></div>
+            <div class="form-group"><button onclick="publishManualNews()">Mevzuya Gir</button></div>
+        </div>
+
+        <h2 class="section-title">Gündemdeki Mevzular</h2>
+        <div id="newsFeed"></div>
+    </div>
+
+    <footer>
+        <p>MEVZU Haber Grubu © 2026</p>
+        <p>Şikayetleriniz için: <a href="mailto:batuhanaltuntas485@gmail.com">batuhanaltuntas485@gmail.com</a></p>
+    </footer>
+
+    <script>
+        const newsFeed = document.getElementById('newsFeed');
+        const toastContainer = document.getElementById('toast-container');
+        
+        // HAFIZA SİSTEMİ
+        let savedNews = JSON.parse(localStorage.getItem('mevzu_v4_news')) || [];
+        let postedLinks = JSON.parse(localStorage.getItem('mevzu_v4_links')) || [];
+        let lastAction = Date.now();
+
+        // 1. İÇTEN MESAJ / UYARI FONKSİYONU
+        function showMevzuMessage(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            toastContainer.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
+        }
+
+        // 2. SAYFA YÜKLENİNCE HABERLERİ DİZ
+        window.onload = () => {
+            savedNews.sort((a,b) => b.timestamp - a.timestamp).forEach(news => {
+                renderNewsCard(news.title, news.desc, news.img, news.date, news.isAI, true);
+            });
+            showMevzuMessage("Mevzu Haber sistemine hoş geldiniz.");
+            fetchRealNewsAsAI(); // Açılışta hemen bir kontrol yap
+        };
+
+        // 3. GİRİŞ KONTROL
+        function checkPass() {
+            if(document.getElementById('passInput').value === "Mevzu") {
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('passInput').value = '';
+                showMevzuMessage("Kurucu yetkisi onaylandı.");
+                lastAction = Date.now();
+            }
+        }
+
+        // 4. KART OLUŞTURMA
+        function renderNewsCard(title, desc, imgUrl, date, isAI, isLoading = false) {
+            const card = document.createElement('div');
+            card.className = 'news-card';
+            
+            const aiBadge = isAI ? `<div class="ai-badge"><img src="icon.jpg"><span>MevzuAI</span></div>` : '';
+            const safeImg = imgUrl || 'https://via.placeholder.com/400x210/0b1320/ffffff?text=MEVZU';
+
+            card.innerHTML = `
+                ${aiBadge}
+                <div class="news-image-container"><img src="${safeImg}" class="news-image"></div>
+                <div class="news-content">
+                    <h3 class="news-title">${title}</h3>
+                    <p class="news-desc">${desc}</p>
+                    <div class="news-date">${date}</div>
+                </div>
+            `;
+            
+            newsFeed.prepend(card);
+
+            if(!isLoading) {
+                savedNews.push({title, desc, img: imgUrl, date, isAI, timestamp: Date.now()});
+                localStorage.setItem('mevzu_v4_news', JSON.stringify(savedNews));
+            }
+        }
+
+        // 5. KURUCU PAYLAŞIMI
+        function publishManualNews() {
+            const title = document.getElementById('newsTitle').value;
+            const content = document.getElementById('newsContent').value;
+            const img = document.getElementById('newsImgUrl').value;
+            
+            if(!title || !content) {
+                showMevzuMessage("Lütfen başlık ve içerik doldurun!");
+                return;
+            }
+
+            renderNewsCard(title, content, img, new Date().toLocaleString('tr-TR'), false);
+            showMevzuMessage("Haber yayına alındı.");
+            
+            document.getElementById('newsTitle').value = "";
+            document.getElementById('newsContent').value = "";
+            document.getElementById('newsImgUrl').value = "";
+            lastAction = Date.now();
+        }
+
+        // 6. MEVZUAI: İNTERNETTEN HABER ÇEKME (DAHA GÜÇLÜ)
+        async function fetchRealNewsAsAI() {
+            try {
+                // Farklı bir RSS kaynağı ve proxy kullanarak CORS sorununu minimize ediyoruz
+                const sources = [
+                    'https://www.ntv.com.tr/son-dakika.rss',
+                    'https://www.sozcu.com.tr/rss/son-dakika.xml'
+                ];
+                const selectedSource = sources[Math.floor(Math.random() * sources.length)];
+                const apiUrl = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(selectedSource);
+                
+                const res = await fetch(apiUrl);
+                const data = await res.json();
+                
+                if (data.status === 'ok') {
+                    // Daha önce paylaşılmamış İLK haberi al
+                    const item = data.items.find(i => !postedLinks.includes(i.guid || i.link));
+                    
+                    if (item) {
+                        postedLinks.push(item.guid || item.link);
+                        localStorage.setItem('mevzu_v4_links', JSON.stringify(postedLinks));
+                        
+                        const cleanDesc = item.description.replace(/<[^>]*>?/gm, '').substring(0, 200) + "...";
+                        const img = item.enclosure.link || item.thumbnail || "";
+                        
+                        renderNewsCard(item.title, cleanDesc, img, "MevzuAI • " + new Date().toLocaleTimeString(), true);
+                        showMevzuMessage("Yeni haber MevzuAI tarafından eklendi.");
+                    }
+                }
+            } catch (e) { console.log("AI Bağlantı Hatası"); }
+        }
+
+        // 7. AI DÖNGÜSÜ (10 saniyede bir kontrol)
+        setInterval(() => {
+            if (Date.now() - lastAction > 15000) { 
+                fetchRealNewsAsAI();
+            }
+        }, 10000);
+
+    </script>
+</body>
+</html>
